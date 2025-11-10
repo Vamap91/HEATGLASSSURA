@@ -228,11 +228,11 @@ def get_script_status_class(status):
     else:
         return "script-nao-usado"
 
-# Modelo fixo: GPT-4 Turbo
-modelo_gpt = "gpt-4-turbo"
+# Modelo fixo: GPT-4o
+modelo_gpt = "gpt-4o"
 
 # Título
-st.title("MonitorAI")
+st.title("MonitorAI SURA (New)")
 st.write("Análise inteligente de ligações: avaliação de atendimento ao cliente e conformidade com processos.")
 
 # Upload de áudio
