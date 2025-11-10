@@ -1,3 +1,5 @@
-streamlit>=1.29.0
-openai>=1.30.0
+streamlit>=1.32.0
+openai>=1.11.0
+python-dotenv>=1.0.1
 fpdf==1.7.2
+datetime
