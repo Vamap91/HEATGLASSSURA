@@ -265,210 +265,61 @@ Você é um especialista em atendimento ao cliente. Avalie a transcrição a seg
 TRANSCRIÇÃO:
 \"\"\"{transcript_text}\"\"\"
 
-Retorne APENAS um JSON com os seguintes campos, sem texto adicional antes ou depois:
+⚠️ LÓGICA DE GRUPOS - REGRA CRÍTICA:
+A avaliação é dividida em 4 GRUPOS. Se QUALQUER item dentro de um grupo receber "não", TODO O GRUPO recebe 0 pontos.
+
+**GRUPO 1: Utilizou adequadamente as técnicas do atendimento? (26 pontos)**
+- Item 1 (10pts): Atendeu a ligação prontamente, dentro de 5 seg. e utilizou a saudação correta?
+- Item 3 (6pts): Confirmou os dados do cadastro e pediu 2 telefones para contato?
+- Item 4 (2pts): Verbalizou o script da LGPD?
+- Item 5 (5pts): Utilizou a técnica do eco para garantir o entendimento?
+- Item 6 (3pts): Escutou atentamente evitando solicitações em duplicidade?
+
+**GRUPO 2: Adotou o procedimento de acordo com a rotina? (30 pontos)**
+- Item 7 (5pts): Compreendeu a solicitação e demonstrou domínio sobre o serviço?
+- Item 9 (10pts): Confirmou as informações completas sobre o dano no veículo?
+- Item 10 (10pts): Confirmou cidade E selecionou a primeira opção de loja?
+
+**GRUPO 3: Foi objetivo, contribuindo para redução do Tma? (9 pontos)**
+- Item 11 (5pts): Comunicação eficaz sem gírias ou linguagem inadequada?
+- Item 12 (4pts): Conduta acolhedora com sorriso na voz e empatia?
+
+**GRUPO 4: Utilizou adequadamente o sistema? (21 pontos)**
+- Item 14 (15pts): Realizou o script de encerramento completo?
+- Item 15 (6pts): Orientou sobre a pesquisa de satisfação?
+
+📊 CÁLCULO DA PONTUAÇÃO:
+1. Grupo 1 (itens 1,3,4,5,6): Se TODOS "sim" = 26 pts. Se ALGUM "não" = 0 pts
+2. Grupo 2 (itens 7,9,10): Se TODOS "sim" = 30 pts. Se ALGUM "não" = 0 pts
+3. Grupo 3 (itens 11,12): Se TODOS "sim" = 9 pts. Se ALGUM "não" = 0 pts
+4. Grupo 4 (itens 14,15): Se TODOS "sim" = 21 pts. Se ALGUM "não" = 0 pts
+5. Total = Soma APENAS dos grupos com TODOS os itens "sim" (máximo 86 pts)
+
+Retorne APENAS JSON (sem ``` ou texto adicional):
 
 {{
   "status_final": {{"satisfacao": "...", "risco": "...", "desfecho": "..."}},
   "checklist": [
-    {{"item": 1, "criterio": "Atendeu a ligação prontamente, dentro de 5 seg. e utilizou a saudação correta com as técnicas do atendimento encantador?", "pontos": 10, "resposta": "...", "justificativa": "..."}},
-    ...
+    {{"item": 1, "criterio": "Atendeu prontamente com saudação correta", "pontos": 10, "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 3, "criterio": "Confirmou cadastro e pediu 2 telefones", "pontos": 6, "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 4, "criterio": "Verbalizou script LGPD", "pontos": 2, "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 5, "criterio": "Utilizou técnica do eco", "pontos": 5, "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 6, "criterio": "Escutou atentamente", "pontos": 3, "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 7, "criterio": "Compreendeu e demonstrou domínio", "pontos": 5, "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 9, "criterio": "Confirmou danos no veículo", "pontos": 10, "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 10, "criterio": "Confirmou cidade e loja", "pontos": 10, "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 11, "criterio": "Comunicação eficaz", "pontos": 5, "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 12, "criterio": "Conduta acolhedora", "pontos": 4, "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 14, "criterio": "Script de encerramento completo", "pontos": 15, "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 15, "criterio": "Orientou sobre pesquisa", "pontos": 6, "resposta": "sim/não", "justificativa": "..."}}
   ],
-  "criterios_eliminatorios": [
-    {{"criterio": "Ofereceu/garantiu algum serviço que o cliente não tinha direito?", "ocorreu": true/false, "justificativa": "..."}},
-    ...
-  ],
+  "criterios_eliminatorios": [...],
   "uso_script": {{"status": "completo/parcial/não utilizado", "justificativa": "..."}},
-  "pontuacao_total": ...,
+  "pontuacao_total": (calcular conforme regra de grupos, máximo 86),
   "resumo_geral": "..."
 }}
 
-Scoring logic (mandatory):
-*Only add points for items marked as “yes”.
-*If the answer is “no”, assign 0 points.
-*Never display 81 points by default.
-*Final score = sum of all "yes" items only.
-
-Checklist (81 pts totais):
-1. Atendeu a ligação prontamente, dentro de 5 seg. e utilizou a saudação correta com as técnicas do atendimento encantador? (10 Pontos)
-2. Solicitou os dados do cadastro do cliente e pediu 2 telefones para contato, nome, cpf, placa do veículo e endereço ? Para Bradesco/Sura/ALD: CPF e endereço podem ser dispensados se já estão no sistema. Só é "sim" se todas as informações forem solicitadas (6 Pontos)
-3. O Atendente Verbalizou o script LGPD? Script informado em INSTRUÇÕES ADICIONAIS DE AVALIAÇÃO tópico 2. (2 Pontos)
-4. Repetiu verbalmente pelo menos duas das três informações principais (placa do veículo, telefone de contato, CPF) para confirmar que coletou corretamente os dados? (5 Pontos)
-5. Escutou atentamente a solicitação do segurado evitando solicitações em duplicidade?  (3 Pontos)
-6. Compreendeu a solicitação do cliente em linha e demonstrou que entende sobre os serviços da empresa? (5 Pontos)
-7. Confirmou as informações completas sobre o dano no veículo? Confirmou data e motivo da quebra, registro do item, dano na pintura e demais informações necessárias para o correto fluxo de atendimento. (tamanho da trinca, LED, Xenon, etc) - 10 Pontos
-8. Confirmou cidade para o atendimento e selecionou corretamente a primeira opção de loja identificada pelo sistema?ATENÇÃO: Ambos os critérios são obrigatórios - confirmar cidade E selecionar loja. (10 Pontos)
-9. A comunicação com o cliente foi eficaz: não houve uso de gírias, linguagem inadequada ou conversas paralelas? O analista informou quando ficou ausente da linha e quando retornou? (5 Pontos)
-10. A conduta do analista foi acolhedora, com sorriso na voz, empatia e desejo verdadeiro em entender e solucionar a solicitação do cliente? (4 Pontos)
-11.Realizou o script de encerramento completo, informando: prazo de validade, franquia, link de acompanhamento e vistoria, e orientou que o cliente aguarde o contato para agendamento? (15 Pontos)
-12. Orientou o cliente sobre a pesquisa de satisfação do atendimento? (6 Pontos)
-
-Scoring logic (mandatory):
-*Only add points for items marked as “yes”.
-*If the answer is “no”, assign 0 points.
-*Never display 81 points by default.
-*Final score = sum of all "yes" items only
-
-INSTRUÇÕES ADICIONAIS DE AVALIAÇÃO:
-1. TÉCNICA DO ECO (Checklist 4.) - AVALIAÇÃO RIGOROSA E ESPECÍFICA:
-
-MARQUE COMO "SIM" SE QUALQUER UMA DAS CONDIÇÕES ABAIXO FOR ATENDIDA:
-
-### CONDIÇÃO A - SOLETRAÇÃO FONÉTICA (APROVAÇÃO AUTOMÁTICA):
-- O atendente fez soletração fonética de QUALQUER informação principal (placa, telefone ou CPF)
-- Exemplos válidos: "R de rato, W de Washington, F de faca", "rato, sapo, xícara", "A de avião, B de bola"
-- IMPORTANTE: Uma única soletração fonética é suficiente para marcar "SIM"
-
-### CONDIÇÃO B - ECO MÚLTIPLO:
-- O atendente repetiu (completa ou parcialmente) PELO MENOS 2 informações principais:
-  * Placa do veículo
-  * Telefone principal 
-  * CPF
-  * Telefone secundário (quando fornecido)
-
-### CONDIÇÃO C - ECO PARCIAL (APROVAÇÃO FLEXÍVEL):
-- O atendente repetiu parte significativa de uma informação principal
-- Exemplos válidos: 
-  * Cliente: "0800-703-0203" → Atendente: "0203" ✓ (últimos dígitos)
-  * Cliente: "679-997-812" → Atendente: "812" ✓ (parte final)
-  * Cliente: "54-3381-5775" → Atendente: "5775" ✓ (últimos dígitos)
-- IMPORTANTE: Eco parcial de dígitos finais é válido mesmo sem confirmação explícita
-
-### CONDIÇÃO D - ECO INTERROGATIVO CONFIRMADO:
-- O atendente repetiu informação com tom interrogativo E o cliente confirmou
-- Exemplos válidos:
-  * "54-3381-5775?" → Cliente: "Isso"
-  * "É 79150-005?" → Cliente: "Sim"
-
-### FORMAS VÁLIDAS DE ECO (EXEMPLOS ESPECÍFICOS):
-1. **Repetição completa**: "54-3381-5775"
-2. **Repetição parcial**: "0203" (últimos dígitos)
-3. **Soletração fonética**: "R de rato, W de Washington, F de faca"
-4. **Confirmação repetindo**: "É 679-997-812, correto?"
-5. **Eco interrogativo**: "54-99113-0199?"
-
-### NÃO É ECO VÁLIDO:
-- Apenas "ok", "certo", "entendi", "perfeito" sem repetir informação
-- Repetição sem confirmação do cliente quando necessária
-- Eco de informações não principais (nome, endereço sem número)
-
-### INSTRUÇÕES ESPECÍFICAS PARA AVALIAÇÃO:
-1. **PRIORIDADE MÁXIMA**: Se houver soletração fonética, marque "SIM" imediatamente
-2. **ECO PARCIAL É VÁLIDO**: Repetição de 3+ dígitos finais de telefone/CPF é suficiente
-3. **CONTE TELEFONES SEPARADAMENTE**: Telefone principal e secundário são informações distintas
-4. **CONTEXTO IMPORTA**: Eco imediatamente após cliente fornecer informação é mais válido
-
-### CASOS ESPECÍFICOS VERDADEIROS:
-- "R de rato, W de Washington, F de faca, 9, B de bola, 45" → Cliente: "Isso" ✓
-- "54-3381-5775?" → Cliente: "Isso" ✓
-- "0203" (após cliente: "0800-703-0203") ✓ VÁLIDO SEM CONFIRMAÇÃO
-- "É rato, sapo, xícara, seis..." → Cliente: "Isso" ✓
-
-REGRA ESPECIAL PARA ECO PARCIAL: Se o atendente repetir os últimos 3 ou mais dígitos de um telefone ou CPF imediatamente após o cliente fornecê-lo, considere como eco válido, mesmo sem confirmação explícita do cliente.
-
-### NA JUSTIFICATIVA, ESPECIFIQUE:
-- Qual(is) informação(ões) tiveram eco
-- Tipo de eco utilizado (completo, parcial, soletração, interrogativo)
-- Se houve confirmação do cliente
-- Transcrição exata do eco identificado
-
-IMPORTANTE: Esta avaliação deve ser RIGOROSA mas JUSTA. Se houver dúvida entre SIM e NÃO, considere o contexto de confirmação do cliente para decidir.
-2. Script LGPD (Checklist 3.): O atendente deve mencionar explicitamente que o telefone será compartilhado com o prestador de serviço, com ênfase em privacidade ou consentimento. As seguintes variações são válidas e devem ser aceitas como equivalentes:
-    2.1 Você permite que a nossa empresa compartilhe o seu telefone com o prestador que irá lhe atender?
-    2.2 Podemos compartilhar seu telefone com o prestador que irá realizar o serviço?
-    2.3 Seu telefone pode ser informado ao prestador que irá realizar o serviço?
-    2.4 O prestador pode ter acesso ao seu número para realizar o agendamento do serviço?
-    2.5 Podemos compartilhar seu telefone com o prestador que irá te atender?
-    2.6 Você autoriza o compartilhamento do telefone informado com o prestador que irá te atender?
-    2.7 Pode considerar como "SIM" caso tenha uma menção informando o seguinte cenário "Você autoriza a enviar notificações no telefone WhatsApp", ou algo similar.
-3. Confirmação de histórico: Verifique se há menção explícita ao histórico de utilização do serviço pelo cliente. A simples localização do cliente no sistema NÃO constitui confirmação de histórico.
-4. Pontuação: Cada item não realizado deve impactar estritamente a pontuação final. Os pontos máximos de cada item estão indicados entre parênteses - se marcado como "não", zero pontos devem ser atribuídos.
-5. Critérios eliminatórios: Avalie com alto rigor - qualquer ocorrência, mesmo que sutil, deve ser marcada.
-6. Script de encerramento: Compare literalmente com o modelo fornecido - só marque como "completo" se TODOS os elementos estiverem presentes (validade, franquia, link, pesquisa de satisfação e despedida).
-7. SOLICITAÇÃO DE DADOS DO CADASTRO (Checklist 2) - AVALIAÇÃO RIGOROSA E ESPECÍFICA:
-
-MARQUE COMO "SIM" APENAS SE O ATENDENTE SOLICITOU EXPLICITAMENTE TODOS OS 6 DADOS OBRIGATÓRIOS:
-
-### DADOS OBRIGATÓRIOS (6 elementos):
-1. **NOME** do cliente
-2. **CPF** do cliente
-3. **PLACA** do veículo
-4. **ENDEREÇO** do cliente
-5. **TELEFONE PRINCIPAL** (1º telefone)
-6. **TELEFONE SECUNDÁRIO** (2º telefone)
-
-### CRITÉRIO DE "SOLICITAÇÃO" VÁLIDA:
-- O atendente deve PERGUNTAR/PEDIR explicitamente cada dado
-- Exemplos válidos de solicitação:
-  * "Qual é o seu nome completo?"
-  * "Pode me informar o seu CPF?"
-  * "Qual a placa do veículo?"
-  * "Qual é o seu endereço?"
-  * "Me passa um telefone para contato?"
-  * "Tem um segundo telefone?"
-
-### NÃO É SOLICITAÇÃO VÁLIDA:
-- Cliente se identificar espontaneamente ("Meu nome é João")
-- Atendente apenas confirmar dados já fornecidos
-- Dados já visíveis no sistema sem confirmação
-- Perguntar "mais algum número?" sem especificar que precisa de 2º telefone
-
-### EXCEÇÃO PARA BRADESCO/SURA/ALD:
-- **CPF e ENDEREÇO** podem ser dispensados APENAS se o atendente CONFIRMAR explicitamente que já estão no sistema
-- Exemplos válidos de dispensa:
-  * "Vejo aqui que já temos seu CPF no sistema"
-  * "Seu endereço já consta aqui no cadastro"
-  * "Localizei seus dados completos no sistema"
-- IMPORTANTE: Simples omissão sem justificativa = FALSO
-
-### TELEFONE SECUNDÁRIO - REGRA ESPECIAL:
-- Deve ser solicitado OBRIGATORIAMENTE para todas as seguradoras
-- "Cliente não tem" ou "só tenho esse" NÃO dispensa a solicitação
-- O atendente deve perguntar explicitamente por um segundo número
-- Exemplo correto: "Quer deixar uma segunda opção de telefone?"
-
-### INSTRUÇÕES ESPECÍFICAS PARA AVALIAÇÃO:
-1. **CONTE CADA DADO INDIVIDUALMENTE**: Verifique se cada um dos 6 dados foi solicitado
-2. **SOLICITAÇÃO ≠ CONFIRMAÇÃO**: Repetir dados já fornecidos não é solicitar
-3. **SEJA RIGOROSO**: A ausência de qualquer dado resulta em "NÃO"
-4. **IDENTIFIQUE A SEGURADORA**: Aplique exceção apenas para Bradesco/Sura/ALD
-5. **JUSTIFIQUE ESPECIFICAMENTE**: Liste quais dados faltaram
-
-### CASOS ESPECÍFICOS DOS ÁUDIOS ANALISADOS:
-- Id89: FALSO (faltaram nome, CPF, endereço - cliente se identificou espontaneamente)
-- Id91: FALSO (faltou 2º telefone - perguntou "mais algum número" mas não insistiu)
-- Id100: FALSO (faltaram CPF, endereço, 2º telefone - Bradesco sem confirmação no sistema)
-
-### REGRA FINAL:
-TODOS os 6 dados devem ser explicitamente solicitados. Para Bradesco/Sura/ALD, CPF e endereço podem ser dispensados apenas se o atendente confirmar que já estão no sistema. A ausência de qualquer dado obrigatório resulta em "NÃO" e 0 pontos.
-
-Critérios Eliminatórios (cada um resulta em 0 pontos se ocorrer):
-- Ofereceu/garantiu algum serviço que o cliente não tinha direito? 
-  Exemplos: Prometer serviços fora da cobertura, dar garantias não previstas no contrato.
-- Preencheu ou selecionou o Veículo/peça incorretos?
-  Exemplos: Registrar modelo diferente do informado, selecionar peça diferente da solicitada.
-- Agiu de forma rude, grosseira, não deixando o cliente falar e/ou se alterou na ligação?
-  Exemplos: Interrupções constantes, tom agressivo, impedir cliente de explicar situação.
-- Encerrou a chamada ou transferiu o cliente sem o seu conhecimento?
-  Exemplos: Desligar abruptamente, transferir sem explicar ou obter consentimento.
-- Falou negativamente sobre a Carglass, afiliados, seguradoras ou colegas de trabalho?
-  Exemplos: Criticar atendimento prévio, fazer comentários pejorativos sobre a empresa.
-- Forneceu informações incorretas ou fez suposições infundadas sobre garantias, serviços ou procedimentos?
-  Exemplos: "Como a lataria já passou para nós, então provavelmente a sua garantia é motor e câmbio" sem ter certeza disso, sugerir que o cliente pode perder a garantia do veículo.
-- Comentou sobre serviços de terceiros ou orientou o cliente para serviços externos sem autorização?
-  Exemplos: Sugerir que o cliente verifique procedimentos com a concessionária primeiro, fazer comparações com outros serviços, discutir políticas de garantia de outras empresas sem necessidade.
-
-ATENÇÃO: Avalie com rigor frases como "Não teria problema em mexer na lataria e o senhor perder a garantia?" ou "provavelmente a sua garantia é motor e câmbio" - estas constituem informações incorretas ou suposições sem confirmação que podem confundir o cliente e são consideradas violações de critérios eliminatórios.
-
-O script correto para a pergunta 12 é:
-"*obrigada por me aguardar! O seu atendimento foi gerado, e em breve receberá dois links no whatsapp informado, para acompanhar o pedido e realizar a vistoria.*
-*Lembrando que o seu atendimento tem uma franquia de XXX que deverá ser paga no ato do atendimento. (****acessórios/RRSM ****- tem uma franquia que será confirmada após a vistoria).*
-*Te ajudo com algo mais?*
-*Ao final do atendimento terá uma pesquisa de Satisfação, a nota 5 é a máxima, tudo bem?*
-*Agradeço o seu contato, tenha um excelente dia!"*
-
-Avalie se o script acima foi utilizado completamente ou não foi utilizado.
-
-IMPORTANTE: Retorne APENAS o JSON, sem nenhum texto adicional, sem decoradores de código como ```json ou ```, e sem explicações adicionais.
+IMPORTANTE: Aplique a lógica de grupos rigorosamente! Um "não" reprova o grupo inteiro!
 """
 
         with st.spinner("Analisando a conversa..."):
