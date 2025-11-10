@@ -10,7 +10,7 @@ import base64
 from datetime import datetime
 from fpdf import FPDF
 
-# Inicializa o novo cliente da OpenAI
+# Inicializa o cliente da OpenAI
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # Estrutura dos grupos de avaliação conforme o novo formulário
@@ -49,7 +49,7 @@ GRUPOS_AVALIACAO = {
     }
 }
 
-# Função para criar PDF - ADAPTADA PARA GRUPOS
+# Função para criar PDF
 def create_pdf(analysis, transcript_text, model_name):
     pdf = FPDF()
     pdf.add_page()
@@ -60,7 +60,7 @@ def create_pdf(analysis, transcript_text, model_name):
     # Cabeçalho
     pdf.set_fill_color(193, 0, 0)
     pdf.set_text_color(255, 255, 255)
-    pdf.cell(0, 10, "MonitorAI - Relatorio de Atendimento Carglass", 1, 1, "C", True)
+    pdf.cell(0, 10, "MonitorAI - Relatorio de Atendimento", 1, 1, "C", True)
     pdf.ln(5)
     
     # Informações gerais
@@ -86,8 +86,8 @@ def create_pdf(analysis, transcript_text, model_name):
     grupos = analysis.get("grupos", [])
     for grupo in grupos:
         pdf.set_font("Arial", "B", 11)
-        status_emoji = "[OK]" if grupo.get("aprovado") else "[FALHOU]"
-        pdf.multi_cell(0, 8, f"{status_emoji} {grupo.get('nome')}")
+        status = "[OK]" if grupo.get("aprovado") else "[FALHOU]"
+        pdf.multi_cell(0, 8, f"{status} {grupo.get('nome')}")
         
         pdf.set_font("Arial", "", 10)
         pdf.cell(0, 6, f"Pontos: {grupo.get('pontos_obtidos')} de {grupo.get('peso_grupo')}", 0, 1)
@@ -96,11 +96,11 @@ def create_pdf(analysis, transcript_text, model_name):
         for item in grupo.get("itens", []):
             status = "[OK]" if item.get("atendido") else "[X]"
             pdf.set_font("Arial", "", 9)
-            descricao_curta = item.get('descricao')[:80] + "..." if len(item.get('descricao', '')) > 80 else item.get('descricao', '')
-            pdf.multi_cell(0, 6, f"  {status} Item {item.get('id')}: {descricao_curta}")
+            descricao = item.get('descricao', '')[:80] + "..." if len(item.get('descricao', '')) > 80 else item.get('descricao', '')
+            pdf.multi_cell(0, 6, f"  {status} Item {item.get('id')}: {descricao}")
             pdf.set_font("Arial", "I", 8)
-            justificativa_curta = item.get('justificativa', '')[:100]
-            pdf.multi_cell(0, 5, f"       {justificativa_curta}")
+            justificativa = item.get('justificativa', '')[:100]
+            pdf.multi_cell(0, 5, f"       {justificativa}")
         
         pdf.ln(3)
     
@@ -145,34 +145,19 @@ def get_pdf_download_link(pdf_bytes, filename):
 
 # Função para extrair JSON válido da resposta
 def extract_json(text):
-    # Procura pelo primeiro '{' e último '}'
     start_idx = text.find('{')
     end_idx = text.rfind('}')
     
     if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
         json_str = text[start_idx:end_idx+1]
         try:
-            # Verifica se é um JSON válido
             return json.loads(json_str)
         except:
-            # Se não for, tenta encontrar o JSON de outras formas
             pass
     
-    # Tenta usar expressão regular para encontrar um bloco JSON
-    import re
-    json_pattern = r'\{(?:[^{}]|(?R))*\}'
-    matches = re.findall(json_pattern, text, re.DOTALL)
-    if matches:
-        for match in matches:
-            try:
-                return json.loads(match)
-            except:
-                continue
-    
-    # Se tudo falhar, lança um erro detalhado
-    raise ValueError(f"Não foi possível extrair JSON válido da resposta: {text[:100]}...")
+    raise ValueError(f"Não foi possível extrair JSON válido da resposta")
 
-# Estilo visual - MANTIDO DO ORIGINAL
+# Estilo visual
 st.markdown("""
 <style>
 h1, h2, h3 {
@@ -201,51 +186,6 @@ h1, h2, h3 {
     margin-bottom: 15px;
     background-color: #ffecec;
     border: 1px solid #C10000;
-}
-.script-usado {
-    background-color: #e6ffe6;
-    padding: 10px;
-    border-left: 5px solid #00C100;
-    border-radius: 6px;
-    margin-bottom: 10px;
-}
-.script-nao-usado {
-    background-color: #ffcccc;
-    padding: 10px;
-    border-left: 5px solid #FF0000;
-    border-radius: 6px;
-    margin-bottom: 10px;
-}
-.criterio-sim {
-    background-color: #e6ffe6;
-    padding: 10px;
-    border-radius: 6px;
-    margin-bottom: 5px;
-    border-left: 5px solid #00C100;
-}
-.criterio-nao {
-    background-color: #ffcccc;
-    padding: 10px;
-    border-radius: 6px;
-    margin-bottom: 5px;
-    border-left: 5px solid #FF0000;
-}
-.progress-high {
-    color: #00C100;
-}
-.progress-medium {
-    color: #FFD700;
-}
-.progress-low {
-    color: #FF0000;
-}
-.criterio-eliminatorio {
-    background-color: #ffcccc;
-    padding: 10px;
-    border-radius: 6px;
-    margin-top: 20px;
-    border: 2px solid #FF0000;
-    font-weight: bold;
 }
 .grupo-box {
     background-color: #ffffff;
@@ -278,10 +218,19 @@ h1, h2, h3 {
     border-left-color: #FF0000;
     background-color: #ffecec;
 }
+.progress-high {
+    color: #00C100;
+}
+.progress-medium {
+    color: #FFD700;
+}
+.progress-low {
+    color: #FF0000;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# Função para determinar classe de progresso - MANTIDA DO ORIGINAL
+# Função para determinar classe de progresso
 def get_progress_class(value):
     if value >= 70:
         return "progress-high"
@@ -290,21 +239,14 @@ def get_progress_class(value):
     else:
         return "progress-low"
 
-# Função para verificar status do script - MANTIDA DO ORIGINAL
-def get_script_status_class(status):
-    if status.lower() == "completo" or status.lower() == "sim":
-        return "script-usado"
-    else:
-        return "script-nao-usado"
-
-# Modelo fixo: GPT-4 Turbo - MANTIDO DO ORIGINAL
+# Modelo fixo
 modelo_gpt = "gpt-4-turbo"
 
-# Título - MANTIDO DO ORIGINAL
+# Título
 st.title("MonitorAI")
 st.write("Análise inteligente de ligações: avaliação de atendimento ao cliente e conformidade com processos.")
 
-# Upload de áudio - MANTIDO DO ORIGINAL
+# Upload de áudio
 uploaded_file = st.file_uploader("Envie o áudio da ligação (.mp3)", type=["mp3"])
 
 if uploaded_file is not None:
@@ -315,7 +257,7 @@ if uploaded_file is not None:
     st.audio(uploaded_file, format='audio/mp3')
 
     if st.button("🔍 Analisar Atendimento"):
-        # Transcrição via Whisper - MANTIDO DO ORIGINAL
+        # Transcrição via Whisper
         with st.spinner("Transcrevendo o áudio..."):
             with open(tmp_path, "rb") as audio_file:
                 transcript = client.audio.transcriptions.create(
@@ -327,149 +269,65 @@ if uploaded_file is not None:
         with st.expander("Ver transcrição completa"):
             st.code(transcript_text, language="markdown")
 
-        # Prompt - NOVO COM LÓGICA DE GRUPOS + TODAS AS INSTRUÇÕES ORIGINAIS
+        # Prompt com todas as instruções originais + lógica de grupos
         prompt = f"""
-Você é um especialista em atendimento ao cliente da Carglass. Avalie a transcrição a seguir usando a nova estrutura de GRUPOS.
+Você é um especialista em atendimento ao cliente da Carglass. Avalie a transcrição usando a estrutura de GRUPOS.
 
 TRANSCRIÇÃO:
 \"\"\"{transcript_text}\"\"\"
 
 ESTRUTURA DE AVALIAÇÃO POR GRUPOS:
 
-A avaliação é dividida em 4 GRUPOS. REGRA CRÍTICA: Se qualquer item dentro de um grupo falhar (receber "não"), TODO O GRUPO recebe 0 pontos.
+REGRA CRÍTICA: Se qualquer item dentro de um grupo falhar, TODO O GRUPO recebe 0 pontos.
 
 **GRUPO 1: Utilizou adequadamente as técnicas do atendimento? (26 pontos)**
 - Item 1 (10 pts): Atendeu a ligação prontamente, dentro de 5 seg. e utilizou a saudação correta com as técnicas do atendimento encantador?
 - Item 3 (6 pts): Confirmou os dados do cadastro e pediu 2 telefones para contato?
 - Item 4 (2 pts): Verbalizou o script da LGPD?
-- Item 5 (5 pts): Utilizou a técnica do eco para garantir o entendimento sobre as informações coletadas, evitando erros no processo e recontato do cliente?
+- Item 5 (5 pts): Utilizou a técnica do eco para garantir o entendimento sobre as informações coletadas?
 - Item 6 (3 pts): Escutou atentamente a solicitação do segurado evitando solicitações em duplicidade?
 
 **GRUPO 2: Adotou o procedimento de acordo com a rotina/transmitiu informações corretas e completas? (30 pontos)**
 - Item 7 (5 pts): Compreendeu a solicitação do cliente em linha e demonstrou domínio sobre o produto/serviço?
 - Item 9 (10 pts): Confirmou as informações completas sobre o dano no veículo?
-- Item 10 (10 pts): Confirmou cidade para o atendimento e selecionou corretamente a primeira opção de loja identificada pelo sistema?
+- Item 10 (10 pts): Confirmou cidade para o atendimento e selecionou corretamente a primeira opção de loja?
 
 **GRUPO 3: Foi objetivo, contribuindo para redução do Tma? (9 pontos)**
-- Item 11 (5 pts): A comunicação com o cliente foi eficaz: não houve uso de gírias, linguagem inadequada ou conversas paralelas? O analista informou quando ficou ausente da linha e quando retornou?
-- Item 12 (4 pts): A conduta do analista foi acolhedora, com sorriso na voz, empatia e desejo verdadeiro em entender e solucionar a solicitação do cliente?
+- Item 11 (5 pts): A comunicação foi eficaz: sem gírias, linguagem inadequada ou conversas paralelas?
+- Item 12 (4 pts): A conduta foi acolhedora, com sorriso na voz, empatia e desejo verdadeiro?
 
-**GRUPO 4: Utilizou adequadamente o sistema e efetuou os registros de maneira correta e completa? (21 pontos)**
-- Item 14 (15 pts): Realizou o script de encerramento completo, informando: prazo de validade, franquia, link de acompanhamento e vistoria, e orientou que o cliente aguarde o contato para agendamento?
-- Item 15 (6 pts): Orientou o cliente sobre a pesquisa de satisfação do atendimento?
+**GRUPO 4: Utilizou adequadamente o sistema e efetuou os registros? (21 pontos)**
+- Item 14 (15 pts): Realizou o script de encerramento completo?
+- Item 15 (6 pts): Orientou o cliente sobre a pesquisa de satisfação?
 
-INSTRUÇÕES DETALHADAS DE AVALIAÇÃO (MANTIDAS DO SISTEMA ORIGINAL):
+INSTRUÇÕES DETALHADAS:
 
-1. TÉCNICA DO ECO (Item 5) - AVALIAÇÃO RIGOROSA:
+1. TÉCNICA DO ECO (Item 5): Marque SIM se:
+   - Fez soletração fonética (ex: "R de rato, W de Washington")
+   - Repetiu 2+ informações principais (placa, telefone, CPF)
+   - Repetiu últimos 3+ dígitos de telefone/CPF
+   - Repetiu com tom interrogativo E cliente confirmou
 
-MARQUE COMO "SIM" SE QUALQUER UMA DAS CONDIÇÕES ABAIXO FOR ATENDIDA:
+2. SCRIPT LGPD (Item 4): Deve mencionar compartilhamento de telefone com prestador. Variações válidas:
+   - "Você permite compartilhar seu telefone com o prestador?"
+   - "Podemos informar seu telefone ao prestador?"
+   - "Você autoriza notificações no WhatsApp?"
 
-### CONDIÇÃO A - SOLETRAÇÃO FONÉTICA (APROVAÇÃO AUTOMÁTICA):
-- O atendente fez soletração fonética de QUALQUER informação principal (placa, telefone ou CPF)
-- Exemplos válidos: "R de rato, W de Washington, F de faca", "rato, sapo, xícara", "A de avião, B de bola"
-- IMPORTANTE: Uma única soletração fonética é suficiente para marcar "SIM"
+3. SOLICITAÇÃO DE DADOS (Item 3): Deve solicitar TODOS os 6 dados:
+   - Nome, CPF, Placa, Endereço, Telefone principal, Telefone secundário
+   - EXCEÇÃO Bradesco/Sura/ALD: CPF e endereço dispensados se já no sistema
+   - Cliente se identificar espontaneamente NÃO conta
 
-### CONDIÇÃO B - ECO MÚLTIPLO:
-- O atendente repetiu (completa ou parcialmente) PELO MENOS 2 informações principais:
-  * Placa do veículo
-  * Telefone principal 
-  * CPF
-  * Telefone secundário (quando fornecido)
+4. CONFIRMAÇÃO DE DANOS (Item 9): Deve confirmar data, motivo, tamanho da trinca, LED/Xenon, dano na pintura
 
-### CONDIÇÃO C - ECO PARCIAL (APROVAÇÃO FLEXÍVEL):
-- O atendente repetiu parte significativa de uma informação principal
-- Exemplos válidos: 
-  * Cliente: "0800-703-0203" → Atendente: "0203" ✓ (últimos dígitos)
-  * Cliente: "679-997-812" → Atendente: "812" ✓ (parte final)
-  * Cliente: "54-3381-5775" → Atendente: "5775" ✓ (últimos dígitos)
-- IMPORTANTE: Eco parcial de dígitos finais é válido mesmo sem confirmação explícita
-
-### CONDIÇÃO D - ECO INTERROGATIVO CONFIRMADO:
-- O atendente repetiu informação com tom interrogativo E o cliente confirmou
-- Exemplos válidos:
-  * "54-3381-5775?" → Cliente: "Isso"
-  * "É 79150-005?" → Cliente: "Sim"
-
-### NÃO É ECO VÁLIDO:
-- Apenas "ok", "certo", "entendi", "perfeito" sem repetir informação
-- Repetição sem confirmação do cliente quando necessária
-- Eco de informações não principais (nome, endereço sem número)
-
-2. SCRIPT LGPD (Item 4): O atendente deve mencionar explicitamente que o telefone será compartilhado com o prestador de serviço, com ênfase em privacidade ou consentimento. As seguintes variações são válidas:
-   - Você permite que a nossa empresa compartilhe o seu telefone com o prestador que irá lhe atender?
-   - Podemos compartilhar seu telefone com o prestador que irá realizar o serviço?
-   - Seu telefone pode ser informado ao prestador que irá realizar o serviço?
-   - O prestador pode ter acesso ao seu número para realizar o agendamento do serviço?
-   - Você autoriza o compartilhamento do telefone informado com o prestador que irá te atender?
-   - Você autoriza a enviar notificações no telefone WhatsApp (ou similar)
-
-3. SOLICITAÇÃO DE DADOS DO CADASTRO (Item 3) - AVALIAÇÃO RIGOROSA:
-
-MARQUE COMO "SIM" APENAS SE O ATENDENTE SOLICITOU EXPLICITAMENTE TODOS OS 6 DADOS OBRIGATÓRIOS:
-
-### DADOS OBRIGATÓRIOS (6 elementos):
-1. **NOME** do cliente
-2. **CPF** do cliente
-3. **PLACA** do veículo
-4. **ENDEREÇO** do cliente
-5. **TELEFONE PRINCIPAL** (1º telefone)
-6. **TELEFONE SECUNDÁRIO** (2º telefone)
-
-### CRITÉRIO DE "SOLICITAÇÃO" VÁLIDA:
-- O atendente deve PERGUNTAR/PEDIR explicitamente cada dado
-- Exemplos válidos:
-  * "Qual é o seu nome completo?"
-  * "Pode me informar o seu CPF?"
-  * "Qual a placa do veículo?"
-  * "Qual é o seu endereço?"
-  * "Me passa um telefone para contato?"
-  * "Tem um segundo telefone?"
-
-### NÃO É SOLICITAÇÃO VÁLIDA:
-- Cliente se identificar espontaneamente ("Meu nome é João")
-- Atendente apenas confirmar dados já fornecidos
-- Dados já visíveis no sistema sem confirmação
-- Perguntar "mais algum número?" sem especificar que precisa de 2º telefone
-
-### EXCEÇÃO PARA BRADESCO/SURA/ALD:
-- **CPF e ENDEREÇO** podem ser dispensados APENAS se o atendente CONFIRMAR explicitamente que já estão no sistema
-- Exemplos válidos de dispensa:
-  * "Vejo aqui que já temos seu CPF no sistema"
-  * "Seu endereço já consta aqui no cadastro"
-  * "Localizei seus dados completos no sistema"
-- IMPORTANTE: Simples omissão sem justificativa = FALSO
-
-### TELEFONE SECUNDÁRIO - REGRA ESPECIAL:
-- Deve ser solicitado OBRIGATORIAMENTE para todas as seguradoras
-- "Cliente não tem" ou "só tenho esse" NÃO dispensa a solicitação
-- O atendente deve perguntar explicitamente por um segundo número
-- Exemplo correto: "Quer deixar uma segunda opção de telefone?"
-
-4. CONFIRMAÇÃO DE DANOS NO VEÍCULO (Item 9): Deve confirmar data e motivo da quebra, registro do item, dano na pintura e demais informações necessárias (tamanho da trinca, LED, Xenon, etc).
-
-5. CONFIRMAÇÃO DE CIDADE E LOJA (Item 10): ATENÇÃO - Ambos os critérios são obrigatórios: confirmar cidade E selecionar loja.
-
-6. SCRIPT DE ENCERRAMENTO (Item 14): O script correto é:
-"Obrigada por me aguardar! O seu atendimento foi gerado, e em breve receberá dois links no whatsapp informado, para acompanhar o pedido e realizar a vistoria. Lembrando que o seu atendimento tem uma franquia de XXX que deverá ser paga no ato do atendimento. Te ajudo com algo mais? Ao final do atendimento terá uma pesquisa de Satisfação, a nota 5 é a máxima, tudo bem? Agradeço o seu contato, tenha um excelente dia!"
-
-Deve incluir: prazo de validade, franquia, link de acompanhamento e vistoria, orientação para aguardar contato.
-
-7. CRITÉRIOS ELIMINATÓRIOS (cada um resulta em penalização se ocorrer):
-- Ofereceu/garantiu algum serviço que o cliente não tinha direito
-- Preencheu ou selecionou o Veículo/peça incorretos
-- Agiu de forma rude, grosseira, não deixando o cliente falar
-- Encerrou a chamada ou transferiu sem conhecimento do cliente
-- Falou negativamente sobre a Carglass, afiliados, seguradoras ou colegas
-- Forneceu informações incorretas ou fez suposições infundadas
-- Comentou sobre serviços de terceiros sem autorização
+5. SCRIPT ENCERRAMENTO (Item 14): Deve incluir: validade, franquia, links WhatsApp, aguardar contato
 
 REGRAS DE PONTUAÇÃO:
-1. Avalie cada item individualmente (true/false)
-2. Se TODOS os itens de um grupo forem true, o grupo recebe a pontuação total
-3. Se QUALQUER item de um grupo for false, o grupo inteiro recebe 0 pontos
-4. A pontuação final é a soma dos pontos de todos os grupos aprovados
+- Se TODOS itens do grupo = true → grupo recebe pontos totais
+- Se QUALQUER item = false → grupo recebe 0 pontos
+- Pontuação final = soma dos grupos aprovados
 
-Retorne APENAS um JSON válido com esta estrutura:
+Retorne APENAS JSON:
 
 {{
   "grupos": [
@@ -485,7 +343,7 @@ Retorne APENAS um JSON válido com esta estrutura:
           "peso": 10,
           "atendido": true/false,
           "pontos_obtidos": 10 ou 0,
-          "justificativa": "Explicação detalhada com evidências da transcrição"
+          "justificativa": "Explicação com evidências da transcrição"
         }}
       ]
     }}
@@ -495,15 +353,12 @@ Retorne APENAS um JSON válido com esta estrutura:
     "maxima": 86,
     "percentual": 0-100
   }},
-  "resumo_geral": "Análise geral do atendimento com foco nos grupos aprovados/reprovados",
-  "pontos_positivos": ["lista de pontos fortes identificados"],
+  "resumo_geral": "Análise geral focando grupos aprovados/reprovados",
+  "pontos_positivos": ["lista de pontos fortes"],
   "pontos_melhoria": ["lista de melhorias necessárias"]
 }}
 
-IMPORTANTE: 
-- Seja rigoroso na avaliação. Um único item não atendido reprova todo o grupo!
-- Todas as justificativas devem ser específicas e baseadas em evidências da transcrição
-- Retorne APENAS o JSON, sem texto adicional
+IMPORTANTE: Seja rigoroso. Um item não atendido reprova todo o grupo!
 """
 
         with st.spinner("Analisando a conversa..."):
@@ -511,7 +366,7 @@ IMPORTANTE:
                 response = client.chat.completions.create(
                     model=modelo_gpt,
                     messages=[
-                        {"role": "system", "content": "Você é um analista especializado em atendimento. Responda APENAS com o JSON solicitado, sem texto adicional, sem marcadores de código como ```json, e sem explicações."},
+                        {"role": "system", "content": "Você é um analista especializado em atendimento. Responda APENAS com JSON, sem texto adicional."},
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.3,
@@ -519,11 +374,11 @@ IMPORTANTE:
                 )
                 result = response.choices[0].message.content.strip()
 
-                # Mostrar resultado bruto para depuração
+                # Debug
                 with st.expander("Debug - Resposta bruta"):
                     st.code(result, language="json")
                 
-                # Tentar extrair e validar o JSON
+                # Parse JSON
                 try:
                     if not result.startswith("{"):
                         analysis = extract_json(result)
@@ -533,8 +388,6 @@ IMPORTANTE:
                     st.error(f"Erro ao processar JSON: {str(json_error)}")
                     st.text_area("Resposta da IA:", value=result, height=300)
                     st.stop()
-
-                # EXIBIÇÃO DOS RESULTADOS - NOVA ESTRUTURA DE GRUPOS
 
                 # Pontuação Total
                 st.subheader("📊 Pontuação Total")
