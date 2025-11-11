@@ -470,18 +470,18 @@ CÁLCULO DA PONTUAÇÃO:
                     
                     # Todos os grupos agora contam para pontuação (A, B, C, D, E, F = 100%)
                     classe = "grupo-feito" if feito else "grupo-nao-feito"
-                    icone = "✅ TOTALMENTE CERTO" if feito else "❌ TOTALMENTE INCORRETO"
+                    icone_texto = "TOTALMENTE CERTO" if feito else "TOTALMENTE INCORRETO"
+                    icone_emoji = "✅" if feito else "❌"
+                    nome_grupo = grupo.get('nome')
+                    justificativa = grupo.get('justificativa', 'N/A')
                     
                     st.markdown(f"""
                     <div class="{classe}">
-                    <strong>{icone} | {grupo.get('nome')} ({percentual}%)</strong><br>
-                    <em>{grupo.get('justificativa', 'N/A')}</em>
-                    </div>
-                    """, unsafe_allow_html=True)>
-                    <strong>{icone} | {grupo.get('nome')} ({grupo.get('percentual')}%)</strong><br>
-                    <em>{grupo.get('justificativa', 'N/A')}</em>
+                    <strong>{icone_emoji} {icone_texto} | {nome_grupo} ({percentual}%)</strong><br>
+                    <em>{justificativa}</em>
                     </div>
                     """, unsafe_allow_html=True)
+
 
                 # Critérios Eliminatórios
                 st.subheader("⚠️ Critérios Eliminatórios")
@@ -492,10 +492,12 @@ CÁLCULO DA PONTUAÇÃO:
                     for criterio in criterios_elim:
                         if criterio.get("ocorreu", False):
                             criterios_violados = True
+                            criterio_texto = criterio.get('criterio', 'N/A')
+                            justificativa_texto = criterio.get('justificativa', '')
                             st.markdown(f"""
                             <div class="criterio-eliminatorio">
-                            <strong>⛔ {criterio.get('criterio', 'N/A')}</strong><br>
-                            {criterio.get('justificativa', '')}
+                            <strong>🚫 {criterio_texto}</strong><br>
+                            {justificativa_texto}
                             </div>
                             """, unsafe_allow_html=True)
                     
@@ -522,11 +524,14 @@ CÁLCULO DA PONTUAÇÃO:
                         for item in grupos_dict[grupo_letra]:
                             resposta = item.get("resposta", "").lower()
                             icone = "✅" if resposta == "sim" else "❌"
+                            item_num = item.get('item')
+                            criterio = item.get('criterio')
+                            justificativa = item.get('justificativa')
                             
                             st.markdown(f"""
                             <div class="item-detalhe">
-                            {icone} <strong>Item {item.get('item')}: {item.get('criterio')}</strong><br>
-                            <em>{item.get('justificativa')}</em>
+                            {icone} <strong>Item {item_num}: {criterio}</strong><br>
+                            <em>{justificativa}</em>
                             </div>
                             """, unsafe_allow_html=True)
                         st.markdown("---")
