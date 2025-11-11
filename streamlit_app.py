@@ -86,13 +86,14 @@ def create_pdf(analysis, transcript_text, model_name):
     for grupo in grupos:
         feito = grupo.get('feito')
         if feito is None:
-            status_text = "NAO AVALIADO"
-        else:
-            status_text = "FEITO" if feito else "NAO FEITO"
+            continue  # Pular não avaliados
+        
+        status_text = "TOTALMENTE CERTO" if feito else "TOTALMENTE INCORRETO"
         
         pdf.set_font("Arial", "B", 12)
         nome_grupo = clean_text_for_pdf(grupo.get('nome', ''))
-        pdf.multi_cell(0, 8, f"{nome_grupo} - {status_text}")
+        percentual = grupo.get('percentual', 0)
+        pdf.multi_cell(0, 8, f"{nome_grupo} ({percentual}%) - {status_text}")
         pdf.set_font("Arial", "", 10)
         justificativa = clean_text_for_pdf(grupo.get('justificativa', 'N/A'))
         pdf.multi_cell(0, 6, f"Justificativa: {justificativa}")
@@ -245,11 +246,17 @@ Itens que compõem este grupo:
 - Item 15 (peso interno 6): Orientou o cliente sobre a pesquisa de satisfação do atendimento?
 
 **GRUPO E (10%): Transferiu a ligação ao superior quando solicitado e/ou necessário?**
-Avalie se houve necessidade de transferência e como foi conduzida:
-- Houve situação que exigisse transferência?
-- Se sim, foi feita adequadamente?
-- Se não, o atendente resolveu com autonomia?
-IMPORTANTE: Este grupo NÃO conta para pontuação, mas deve ser analisado.
+REGRA ESPECIAL PARA GRUPO E:
+- No modelo atual, colaboradores são incentivados a serem protagonistas do atendimento (autonomia)
+- Buscam auxílio quando necessário, mas são responsáveis por concluir as solicitações
+- Superiores monitoram e apoiam, mas NÃO assumem as chamadas
+
+AVALIAÇÃO:
+- Se NÃO transferiu/acionou superior = VERDE (Totalmente Certo) = +10% na pontuação
+- Se transferiu/acionou superior = VERMELHO (Totalmente Incorreto) = 0% na pontuação
+
+Marque "feito: true" se o atendente NÃO transferiu e resolveu com autonomia.
+Marque "feito: false" se o atendente transferiu ou acionou o superior.
 
 **GRUPO F (20%): Teve foco no cliente?**
 Avalie o foco no cliente durante TODO o atendimento:
@@ -257,7 +264,7 @@ Avalie o foco no cliente durante TODO o atendimento:
 - Manteve empatia e interesse genuíno?
 - Buscou a melhor solução para o cliente?
 - Demonstrou comprometimento em resolver o problema?
-IMPORTANTE: Este grupo NÃO é apenas transversal, deve ser analisado independentemente.
+Este grupo conta 20% na pontuação total.
 
 INSTRUÇÕES DETALHADAS PARA CADA ITEM:
 
@@ -357,14 +364,14 @@ RETORNE APENAS JSON (sem ``` ou texto adicional):
     {{
       "grupo": "E",
       "nome": "Transferiu a ligação ao superior quando solicitado e/ou necessário?",
-      "percentual": 0,
-      "feito": true/false/null,
-      "justificativa": "Análise detalhada: houve necessidade de transferência? Se sim, como foi conduzida? Se não, o atendente demonstrou autonomia adequada?"
+      "percentual": 10,
+      "feito": true/false,
+      "justificativa": "Se NÃO transferiu (autonomia) = true (+10%). Se transferiu = false (0%). Explicar se houve transferência ou se resolveu com autonomia."
     }},
     {{
       "grupo": "F",
       "nome": "Teve foco no cliente?",
-      "percentual": 0,
+      "percentual": 20,
       "feito": true/false,
       "justificativa": "Análise detalhada do foco no cliente durante TODO o atendimento: priorizou necessidades, manteve empatia, buscou melhor solução, demonstrou comprometimento"
     }}
@@ -398,8 +405,9 @@ RETORNE APENAS JSON (sem ``` ou texto adicional):
 
 CÁLCULO DA PONTUAÇÃO:
 - Some APENAS os percentuais dos grupos onde TODOS os itens = "sim" (feito=true)
-- Exemplo: Se grupos A e C estão completos → 10% + 10% = 20%
-- Grupo E não conta para pontuação (não avaliado)
+- Exemplo: Se grupos A, C, E e F estão completos → 10% + 10% + 10% + 20% = 50%
+- IMPORTANTE: Grupo E vale 10% SE o atendente NÃO transferiu (demonstrou autonomia)
+- Pontuação máxima possível: 100%
 """
 
         with st.spinner("Analisando a conversa por grupos..."):
@@ -448,8 +456,7 @@ CÁLCULO DA PONTUAÇÃO:
 
                 # Avaliação por Grupos (Principal)
                 st.subheader("✅ Avaliação por Grupos")
-                st.write("*Grupos A, B, C, D: Cada grupo só é considerado FEITO se TODOS os seus itens forem aprovados*")
-                st.write("*Grupos E e F: Analisados qualitativamente, mas NÃO contam para pontuação*")
+                st.write("*Cada grupo só é considerado TOTALMENTE CERTO se TODOS os seus itens forem aprovados*")
                 
                 grupos = analysis.get("grupos_avaliacao", [])
                 for grupo in grupos:
@@ -457,30 +464,20 @@ CÁLCULO DA PONTUAÇÃO:
                     grupo_letra = grupo.get("grupo", "")
                     percentual = grupo.get("percentual", 0)
                     
-                    # Grupos E e F não contam para pontuação mas são analisados
-                    if grupo_letra in ["E", "F"]:
-                        if feito is None:
-                            classe = "status-box"
-                            icone = "ℹ️ ANÁLISE"
-                        else:
-                            classe = "grupo-feito" if feito else "grupo-nao-feito"
-                            icone = "✅ SIM" if feito else "❌ NÃO"
-                        
-                        st.markdown(f"""
-                        <div class="{classe}">
-                        <strong>{icone} | {grupo.get('nome')}</strong><br>
-                        <small><em>⚠️ Este critério não conta para pontuação, mas é analisado para fins qualitativos</em></small><br>
-                        <em>{grupo.get('justificativa', 'N/A')}</em>
-                        </div>
-                        """, unsafe_allow_html=True)
+                    # Pular se não foi avaliado
+                    if feito is None:
                         continue
                     
-                    # Grupos A, B, C, D contam para pontuação
+                    # Todos os grupos agora contam para pontuação (A, B, C, D, E, F = 100%)
                     classe = "grupo-feito" if feito else "grupo-nao-feito"
-                    icone = "✅ FEITO" if feito else "❌ NÃO FEITO"
+                    icone = "✅ TOTALMENTE CERTO" if feito else "❌ TOTALMENTE INCORRETO"
                     
                     st.markdown(f"""
                     <div class="{classe}">
+                    <strong>{icone} | {grupo.get('nome')} ({percentual}%)</strong><br>
+                    <em>{grupo.get('justificativa', 'N/A')}</em>
+                    </div>
+                    """, unsafe_allow_html=True)>
                     <strong>{icone} | {grupo.get('nome')} ({grupo.get('percentual')}%)</strong><br>
                     <em>{grupo.get('justificativa', 'N/A')}</em>
                     </div>
