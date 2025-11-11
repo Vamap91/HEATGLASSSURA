@@ -1,5 +1,5 @@
 import streamlit as st
-st.set_page_config(page_title="MonitorAI (PRD)", page_icon="🔴", layout="centered")
+st.set_page_config(page_title="MonitorAI - Análise por Grupos", page_icon="🔴", layout="centered")
 
 from openai import OpenAI
 import tempfile
@@ -24,54 +24,87 @@ def create_pdf(analysis, transcript_text, model_name):
     pdf.cell(0, 10, f"Data: {datetime.now().strftime('%d/%m/%Y %H:%M')}", 0, 1)
     pdf.cell(0, 10, f"Modelo: {model_name}", 0, 1)
     pdf.ln(5)
+    
+    # Status Final
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Status Final", 0, 1)
     pdf.set_font("Arial", "", 12)
     final = analysis.get("status_final", {})
-    pdf.cell(0, 10, f"Cliente: {final.get('satisfacao', 'N/A')}", 0, 1)
+    pdf.cell(0, 10, f"Satisfacao: {final.get('satisfacao', 'N/A')}", 0, 1)
     pdf.cell(0, 10, f"Desfecho: {final.get('desfecho', 'N/A')}", 0, 1)
     pdf.cell(0, 10, f"Risco: {final.get('risco', 'N/A')}", 0, 1)
     pdf.ln(5)
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 10, "Script de Encerramento", 0, 1)
-    pdf.set_font("Arial", "", 12)
-    script_info = analysis.get("uso_script", {})
-    pdf.cell(0, 10, f"Status: {script_info.get('status', 'N/A')}", 0, 1)
-    pdf.multi_cell(0, 10, f"Justificativa: {script_info.get('justificativa', 'N/A')}")
-    pdf.ln(5)
+    
+    # Pontuação Total
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Pontuacao Total", 0, 1)
     pdf.set_font("Arial", "B", 12)
-    total = analysis.get("pontuacao_total", "N/A")
-    pdf.cell(0, 10, f"{total} pontos de 86 (avaliacao por grupos)", 0, 1)
+    total = analysis.get("pontuacao_total_percentual", "N/A")
+    pdf.cell(0, 10, f"{total}% (avaliacao por grupos)", 0, 1)
     pdf.ln(5)
+    
+    # Avaliação por Grupos
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(0, 10, "Avaliacao por Grupos", 0, 1)
+    pdf.ln(3)
+    
+    grupos = analysis.get("grupos_avaliacao", [])
+    for grupo in grupos:
+        status_text = "FEITO" if grupo.get('feito') else "NAO FEITO"
+        pdf.set_font("Arial", "B", 12)
+        pdf.multi_cell(0, 8, f"{grupo.get('nome')} - {status_text}")
+        pdf.set_font("Arial", "", 10)
+        pdf.multi_cell(0, 6, f"Justificativa: {grupo.get('justificativa', 'N/A')}")
+        pdf.ln(3)
+    
+    # Resumo Geral
+    pdf.add_page()
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Resumo Geral", 0, 1)
     pdf.set_font("Arial", "", 12)
     pdf.multi_cell(0, 10, analysis.get("resumo_geral", "N/A"))
     pdf.ln(5)
+    
+    # Critérios Eliminatórios
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(0, 10, "Criterios Eliminatorios", 0, 1)
+    pdf.ln(3)
+    criterios_elim = analysis.get("criterios_eliminatorios", [])
+    for criterio in criterios_elim:
+        if criterio.get("ocorreu", False):
+            pdf.set_font("Arial", "B", 11)
+            pdf.multi_cell(0, 8, f"VIOLADO: {criterio.get('criterio', 'N/A')}")
+            pdf.set_font("Arial", "", 10)
+            pdf.multi_cell(0, 6, f"{criterio.get('justificativa', '')}")
+            pdf.ln(3)
+    
+    # Detalhamento Técnico
     pdf.add_page()
     pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 10, "Checklist Tecnico", 0, 1)
+    pdf.cell(0, 10, "Detalhamento Tecnico por Item", 0, 1)
     pdf.ln(5)
-    checklist = analysis.get("checklist", [])
+    
+    checklist = analysis.get("checklist_detalhado", [])
     for item in checklist:
-        pdf.set_font("Arial", "B", 12)
-        pdf.multi_cell(0, 10, f"{item.get('item')}. {item.get('criterio')} ({item.get('pontos')} pts)")
-        pdf.set_font("Arial", "", 12)
-        pdf.cell(0, 10, f"Resposta: {item.get('resposta', '')}", 0, 1)
-        pdf.multi_cell(0, 10, f"Justificativa: {item.get('justificativa', '')}")
-        pdf.ln(5)
+        pdf.set_font("Arial", "B", 11)
+        pdf.multi_cell(0, 8, f"Item {item.get('item')}: {item.get('criterio')}")
+        pdf.set_font("Arial", "", 10)
+        pdf.cell(0, 6, f"Resposta: {item.get('resposta', '')}", 0, 1)
+        pdf.multi_cell(0, 6, f"Justificativa: {item.get('justificativa', '')}")
+        pdf.ln(3)
+    
+    # Transcrição
     pdf.add_page()
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Transcricao", 0, 1)
     pdf.set_font("Arial", "", 10)
     pdf.multi_cell(0, 10, transcript_text)
+    
     return pdf.output(dest="S").encode("latin1")
 
 def get_pdf_download_link(pdf_bytes, filename):
     b64 = base64.b64encode(pdf_bytes).decode()
-    return f'<a href="data:application/pdf;base64,{b64}" download="{filename}">Baixar Relatório em PDF</a>'
+    return f'<a href="data:application/pdf;base64,{b64}" download="{filename}">📥 Baixar Relatório em PDF</a>'
 
 def extract_json(text):
     start_idx = text.find('{')
@@ -89,14 +122,13 @@ h1, h2, h3 { color: #C10000 !important; }
 .result-box { background-color: #ffecec; padding: 1em; border-left: 5px solid #C10000; border-radius: 6px; }
 .stButton>button { background-color: #C10000; color: white; border-radius: 6px; padding: 0.4em 1em; }
 .status-box { padding: 15px; border-radius: 8px; margin-bottom: 15px; background-color: #ffecec; border: 1px solid #C10000; }
-.script-usado { background-color: #e6ffe6; padding: 10px; border-left: 5px solid #00C100; border-radius: 6px; }
-.script-nao-usado { background-color: #ffcccc; padding: 10px; border-left: 5px solid #FF0000; border-radius: 6px; }
-.criterio-sim { background-color: #e6ffe6; padding: 10px; border-radius: 6px; border-left: 5px solid #00C100; }
-.criterio-nao { background-color: #ffcccc; padding: 10px; border-radius: 6px; border-left: 5px solid #FF0000; }
+.grupo-feito { background-color: #e6ffe6; padding: 15px; border-left: 5px solid #00C100; border-radius: 6px; margin-bottom: 10px; }
+.grupo-nao-feito { background-color: #ffcccc; padding: 15px; border-left: 5px solid #FF0000; border-radius: 6px; margin-bottom: 10px; }
 .progress-high { color: #00C100; }
 .progress-medium { color: #FFD700; }
 .progress-low { color: #FF0000; }
-.criterio-eliminatorio { background-color: #ffcccc; padding: 10px; border-radius: 6px; margin-top: 20px; border: 2px solid #FF0000; font-weight: bold; }
+.criterio-eliminatorio { background-color: #ffcccc; padding: 10px; border-radius: 6px; margin-top: 10px; border: 2px solid #FF0000; font-weight: bold; }
+.item-detalhe { background-color: #f5f5f5; padding: 10px; border-radius: 4px; margin: 5px 0; border-left: 3px solid #666; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -105,16 +137,12 @@ def get_progress_class(value):
     elif value >= 50: return "progress-medium"
     else: return "progress-low"
 
-def get_script_status_class(status):
-    if status.lower() in ["completo", "sim"]: return "script-usado"
-    else: return "script-nao-usado"
-
 modelo_gpt = "gpt-4o"
 
-st.title("MonitorAI SURA (New)")
-st.write("Análise inteligente de ligações: avaliação de atendimento ao cliente e conformidade com processos.")
+st.title("MonitorAI SURA - Análise por Grupos")
+st.write("Análise inteligente de ligações: avaliação estruturada por grupos de competências.")
 
-uploaded_file = st.file_uploader("Envie o áudio da ligação (.mp3)", type=["mp3"])
+uploaded_file = st.file_uploader("📁 Envie o áudio da ligação (.mp3)", type=["mp3"])
 
 if uploaded_file is not None:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
@@ -129,41 +157,174 @@ if uploaded_file is not None:
                 transcript = client.audio.transcriptions.create(model="whisper-1", file=audio_file)
             transcript_text = transcript.text
 
-        with st.expander("Ver transcrição completa"):
+        with st.expander("📄 Ver transcrição completa"):
             st.code(transcript_text, language="markdown")
 
         prompt = f"""
-Você é um especialista em atendimento ao cliente da Carglass. Avalie a transcrição:
+Você é um especialista em atendimento ao cliente da Carglass. Avalie a transcrição usando o sistema de GRUPOS.
 
 TRANSCRIÇÃO:
 \"\"\"{transcript_text}\"\"\"
 
-⚠️ LÓGICA DE GRUPOS - REGRA CRÍTICA:
-Se QUALQUER item dentro de um grupo receber "não", TODO O GRUPO recebe 0 pontos.
+⚠️ LÓGICA DE AVALIAÇÃO POR GRUPOS - REGRA CRÍTICA:
+Cada GRUPO só é considerado "FEITO" se TODOS os itens dentro dele receberem "sim".
+Se QUALQUER item de um grupo receber "não", o GRUPO INTEIRO é marcado como "NÃO FEITO" e recebe 0%.
 
-GRUPO 1 (26pts): itens 1,3,4,5,6
-GRUPO 2 (30pts): itens 7,9,10
-GRUPO 3 (9pts): itens 11,12
-GRUPO 4 (21pts): itens 14,15
-TOTAL: 86 pontos
+ESTRUTURA DE GRUPOS:
 
-Retorne APENAS JSON (sem ``` ou texto):
+**GRUPO A (10%): Utilizou adequadamente as técnicas do atendimento?**
+Itens que compõem este grupo:
+- Item 1 (peso interno 10): Atendeu a ligação prontamente, dentro de 5 seg. e utilizou a saudação correta com as técnicas do atendimento encantador?
+- Item 3 (peso interno 6): Confirmou os dados do cadastro e pediu 2 telefones para contato?
+- Item 4 (peso interno 2): Verbalizou o script da LGPD?
+- Item 5 (peso interno 5): Utilizou a técnica do eco para garantir o entendimento sobre as informações coletadas?
+
+**GRUPO B (30%): Adotou o procedimento de acordo com a rotina/transmitiu informações corretas e completas?**
+Itens que compõem este grupo:
+- Item 6 (peso interno 3): Escutou atentamente a solicitação do segurado evitando solicitações em duplicidade?
+- Item 7 (peso interno 5): Compreendeu a solicitação do cliente em linha e demonstrou domínio sobre o produto/serviço?
+- Item 9 (peso interno 10): Confirmou as informações completas sobre o dano no veículo?
+- Item 10 (peso interno 10): Confirmou cidade para o atendimento e selecionou corretamente a primeira opção de loja identificada pelo sistema?
+
+**GRUPO C (10%): Foi objetivo, contribuindo para redução do TMA?**
+Itens que compõem este grupo:
+- Item 11 (peso interno 5): A comunicação com o cliente foi eficaz: não houve uso de gírias, linguagem inadequada ou conversas paralelas? O analista informou quando ficou ausente da linha e quando retornou?
+- Item 12 (peso interno 4): A conduta do analista foi acolhedora, com sorriso na voz, empatia e desejo verdadeiro em entender e solucionar a solicitação do cliente?
+
+**GRUPO D (20%): Utilizou adequadamente o sistema e efetuou os registros de maneira correta e completa?**
+Itens que compõem este grupo:
+- Item 14 (peso interno 15): Realizou o script de encerramento completo, informando: prazo de validade, franquia, link de acompanhamento e vistoria, e orientou que o cliente aguarde o contato para agendamento?
+- Item 15 (peso interno 6): Orientou o cliente sobre a pesquisa de satisfação do atendimento?
+
+**GRUPO E (10%): Transferiu a ligação ao superior quando solicitado e/ou necessário?**
+(Não avaliado no modelo atual - colaboradores têm autonomia)
+
+**GRUPO F (20%): Teve foco no cliente?**
+(Avaliado através dos grupos anteriores - soma dos itens em verde)
+
+INSTRUÇÕES DETALHADAS PARA CADA ITEM:
+
+**ITEM 5 - TÉCNICA DO ECO (AVALIAÇÃO RIGOROSA):**
+Marque como "SIM" SE QUALQUER UMA das condições abaixo for atendida:
+
+CONDIÇÃO A - SOLETRAÇÃO FONÉTICA (APROVAÇÃO AUTOMÁTICA):
+- Soletração fonética de QUALQUER informação (placa, telefone, CPF)
+- Exemplos: "R de rato, W de Washington", "rato, sapo, xícara", "A de avião, B de bola"
+- Uma única soletração fonética é suficiente
+
+CONDIÇÃO B - ECO MÚLTIPLO:
+- Repetiu (completa ou parcialmente) PELO MENOS 2 informações: placa, telefone principal, CPF, telefone secundário
+
+CONDIÇÃO C - ECO PARCIAL (APROVAÇÃO FLEXÍVEL):
+- Repetiu parte significativa de uma informação principal
+- Exemplos: "0800-703-0203" → "0203" (últimos dígitos)
+- Eco parcial de 3+ dígitos finais é válido mesmo sem confirmação explícita
+
+CONDIÇÃO D - ECO INTERROGATIVO CONFIRMADO:
+- Repetiu informação com tom interrogativo E cliente confirmou
+- Exemplos: "54-3381-5775?" → Cliente: "Isso"
+
+NÃO É ECO VÁLIDO: Apenas "ok", "certo", "entendi" sem repetir informação
+
+**ITEM 3 - SOLICITAÇÃO DE DADOS (AVALIAÇÃO RIGOROSA):**
+Marque como "SIM" APENAS se o atendente solicitou EXPLICITAMENTE TODOS os 6 dados:
+1. NOME do cliente
+2. CPF do cliente
+3. PLACA do veículo
+4. ENDEREÇO do cliente
+5. TELEFONE PRINCIPAL
+6. TELEFONE SECUNDÁRIO
+
+EXCEÇÃO BRADESCO/SURA/ALD: CPF e endereço podem ser dispensados APENAS se o atendente CONFIRMAR que já estão no sistema.
+
+**ITEM 4 - SCRIPT LGPD:**
+Válido se mencionar compartilhamento do telefone com prestador, com ênfase em privacidade/consentimento.
+Variações aceitas:
+- "Você permite que compartilhemos seu telefone com o prestador?"
+- "Podemos informar seu telefone ao prestador que irá atender?"
+- "Você autoriza o envio de notificações no WhatsApp?"
+
+**ITEM 14 - SCRIPT DE ENCERRAMENTO:**
+Deve incluir TODOS os elementos:
+- Prazo de validade
+- Franquia
+- Link de acompanhamento e vistoria
+- Orientação para aguardar contato para agendamento
+
+**CRITÉRIOS ELIMINATÓRIOS:**
+- Ofereceu serviço sem direito
+- Preencheu veículo/peça incorretos
+- Agiu com rudeza
+- Encerrou/transferiu sem conhecimento do cliente
+- Falou negativamente da empresa
+- Forneceu informações incorretas ou fez suposições infundadas
+- Comentou sobre serviços externos
+
+RETORNE APENAS JSON (sem ``` ou texto adicional):
 
 {{
-  "status_final": {{"satisfacao": "...", "risco": "...", "desfecho": "..."}},
-  "checklist": [
-    {{"item": 1, "criterio": "Atendeu prontamente com saudação correta", "pontos": 10, "resposta": "sim/não", "justificativa": "..."}},
-    {{"item": 3, "criterio": "Confirmou cadastro e pediu 2 telefones", "pontos": 6, "resposta": "sim/não", "justificativa": "..."}},
-    {{"item": 4, "criterio": "Verbalizou script LGPD", "pontos": 2, "resposta": "sim/não", "justificativa": "..."}},
-    {{"item": 5, "criterio": "Utilizou técnica do eco", "pontos": 5, "resposta": "sim/não", "justificativa": "..."}},
-    {{"item": 6, "criterio": "Escutou atentamente", "pontos": 3, "resposta": "sim/não", "justificativa": "..."}},
-    {{"item": 7, "criterio": "Compreendeu e demonstrou domínio", "pontos": 5, "resposta": "sim/não", "justificativa": "..."}},
-    {{"item": 9, "criterio": "Confirmou danos no veículo", "pontos": 10, "resposta": "sim/não", "justificativa": "..."}},
-    {{"item": 10, "criterio": "Confirmou cidade", "pontos": 10, "resposta": "sim/não", "justificativa": "..."}},
-    {{"item": 11, "criterio": "Comunicação eficaz", "pontos": 5, "resposta": "sim/não", "justificativa": "..."}},
-    {{"item": 12, "criterio": "Conduta acolhedora", "pontos": 4, "resposta": "sim/não", "justificativa": "..."}},
-    {{"item": 14, "criterio": "Script de encerramento completo", "pontos": 15, "resposta": "sim/não", "justificativa": "..."}},
-    {{"item": 15, "criterio": "Orientou sobre pesquisa", "pontos": 6, "resposta": "sim/não", "justificativa": "..."}}
+  "status_final": {{
+    "satisfacao": "satisfeito/insatisfeito/neutro",
+    "risco": "baixo/médio/alto",
+    "desfecho": "resolvido/pendente/não resolvido"
+  }},
+  "grupos_avaliacao": [
+    {{
+      "grupo": "A",
+      "nome": "Utilizou adequadamente as técnicas do atendimento?",
+      "percentual": 10,
+      "feito": true/false,
+      "justificativa": "Explicação detalhada considerando TODOS os itens (1, 3, 4, 5) do grupo"
+    }},
+    {{
+      "grupo": "B",
+      "nome": "Adotou o procedimento de acordo com a rotina/transmitiu informações corretas e completas?",
+      "percentual": 30,
+      "feito": true/false,
+      "justificativa": "Explicação detalhada considerando TODOS os itens (6, 7, 9, 10) do grupo"
+    }},
+    {{
+      "grupo": "C",
+      "nome": "Foi objetivo, contribuindo para redução do TMA?",
+      "percentual": 10,
+      "feito": true/false,
+      "justificativa": "Explicação detalhada considerando TODOS os itens (11, 12) do grupo"
+    }},
+    {{
+      "grupo": "D",
+      "nome": "Utilizou adequadamente o sistema e efetuou os registros de maneira correta e completa?",
+      "percentual": 20,
+      "feito": true/false,
+      "justificativa": "Explicação detalhada considerando TODOS os itens (14, 15) do grupo"
+    }},
+    {{
+      "grupo": "E",
+      "nome": "Transferiu a ligação ao superior quando solicitado e/ou necessário?",
+      "percentual": 10,
+      "feito": null,
+      "justificativa": "Não avaliado - colaboradores têm autonomia no atendimento"
+    }},
+    {{
+      "grupo": "F",
+      "nome": "Teve foco no cliente?",
+      "percentual": 20,
+      "feito": true/false,
+      "justificativa": "Avaliado através da soma dos grupos anteriores que demonstram foco no cliente"
+    }}
+  ],
+  "checklist_detalhado": [
+    {{"item": 1, "grupo": "A", "criterio": "Atendeu prontamente e usou saudação correta", "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 3, "grupo": "A", "criterio": "Confirmou cadastro e pediu 2 telefones", "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 4, "grupo": "A", "criterio": "Verbalizou script LGPD", "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 5, "grupo": "A", "criterio": "Utilizou técnica do eco", "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 6, "grupo": "B", "criterio": "Escutou atentamente", "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 7, "grupo": "B", "criterio": "Demonstrou domínio", "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 9, "grupo": "B", "criterio": "Confirmou danos no veículo", "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 10, "grupo": "B", "criterio": "Confirmou cidade", "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 11, "grupo": "C", "criterio": "Comunicação eficaz", "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 12, "grupo": "C", "criterio": "Conduta acolhedora", "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 14, "grupo": "D", "criterio": "Script encerramento completo", "resposta": "sim/não", "justificativa": "..."}},
+    {{"item": 15, "grupo": "D", "criterio": "Orientou sobre pesquisa", "resposta": "sim/não", "justificativa": "..."}}
   ],
   "criterios_eliminatorios": [
     {{"criterio": "Ofereceu serviço sem direito?", "ocorreu": false, "justificativa": "..."}},
@@ -174,19 +335,17 @@ Retorne APENAS JSON (sem ``` ou texto):
     {{"criterio": "Forneceu informações incorretas?", "ocorreu": false, "justificativa": "..."}},
     {{"criterio": "Comentou sobre serviços externos?", "ocorreu": false, "justificativa": "..."}}
   ],
-  "uso_script": {{"status": "completo/parcial/não utilizado", "justificativa": "..."}},
-  "pontuacao_total": (calcular: soma APENAS grupos onde TODOS itens = sim),
-  "resumo_geral": "..."
+  "pontuacao_total_percentual": (soma dos percentuais dos grupos onde feito=true),
+  "resumo_geral": "Resumo executivo do atendimento, destacando pontos fortes e áreas de melhoria"
 }}
 
-CÁLCULO:
-- Se itens 1,3,4,5,6 TODOS=sim → +26 pts
-- Se itens 7,9,10 TODOS=sim → +30 pts
-- Se itens 11,12 TODOS=sim → +9 pts
-- Se itens 14,15 TODOS=sim → +21 pts
+CÁLCULO DA PONTUAÇÃO:
+- Some APENAS os percentuais dos grupos onde TODOS os itens = "sim" (feito=true)
+- Exemplo: Se grupos A e C estão completos → 10% + 10% = 20%
+- Grupo E não conta para pontuação (não avaliado)
 """
 
-        with st.spinner("Analisando a conversa..."):
+        with st.spinner("Analisando a conversa por grupos..."):
             try:
                 response = client.chat.completions.create(
                     model=modelo_gpt,
@@ -199,7 +358,7 @@ CÁLCULO:
                 )
                 result = response.choices[0].message.content.strip()
 
-                with st.expander("Debug - Resposta bruta"):
+                with st.expander("🔧 Debug - Resposta bruta"):
                     st.code(result, language="json")
                 
                 try:
@@ -208,32 +367,49 @@ CÁLCULO:
                     else:
                         analysis = json.loads(result)
                 except Exception as json_error:
-                    st.error(f"Erro ao processar JSON: {str(json_error)}")
+                    st.error(f"❌ Erro ao processar JSON: {str(json_error)}")
                     st.text_area("Resposta da IA:", value=result, height=300)
                     st.stop()
 
-                st.subheader("📋 Status Final")
+                # Status Final
+                st.subheader("📊 Status Final do Atendimento")
                 final = analysis.get("status_final", {})
                 st.markdown(f"""
                 <div class="status-box">
-                <strong>Cliente:</strong> {final.get("satisfacao", "N/A")}<br>
+                <strong>Satisfação do Cliente:</strong> {final.get("satisfacao", "N/A")}<br>
                 <strong>Desfecho:</strong> {final.get("desfecho", "N/A")}<br>
-                <strong>Risco:</strong> {final.get("risco", "N/A")}
+                <strong>Nível de Risco:</strong> {final.get("risco", "N/A")}
                 </div>
                 """, unsafe_allow_html=True)
 
-                st.subheader("📝 Script de Encerramento")
-                script_info = analysis.get("uso_script", {})
-                script_status = script_info.get("status", "Não avaliado")
-                script_class = get_script_status_class(script_status)
+                # Pontuação Total
+                total_percentual = analysis.get("pontuacao_total_percentual", 0)
+                progress_class = get_progress_class(total_percentual)
+                st.subheader("📈 Pontuação Total")
+                st.progress(min(total_percentual / 100, 1.0))
+                st.markdown(f"<h2 class='{progress_class}'>{total_percentual}% de 100%</h2>", unsafe_allow_html=True)
+
+                # Avaliação por Grupos (Principal)
+                st.subheader("✅ Avaliação por Grupos")
+                st.write("*Cada grupo só é considerado FEITO se TODOS os seus itens forem aprovados*")
                 
-                st.markdown(f"""
-                <div class="{script_class}">
-                <strong>Status:</strong> {script_status}<br>
-                <strong>Justificativa:</strong> {script_info.get("justificativa", "Não informado")}
-                </div>
-                """, unsafe_allow_html=True)
+                grupos = analysis.get("grupos_avaliacao", [])
+                for grupo in grupos:
+                    feito = grupo.get("feito")
+                    if feito is None:
+                        continue  # Pular grupo E que não é avaliado
+                    
+                    classe = "grupo-feito" if feito else "grupo-nao-feito"
+                    icone = "✅ FEITO" if feito else "❌ NÃO FEITO"
+                    
+                    st.markdown(f"""
+                    <div class="{classe}">
+                    <strong>{icone} | {grupo.get('nome')} ({grupo.get('percentual')}%)</strong><br>
+                    <em>{grupo.get('justificativa', 'N/A')}</em>
+                    </div>
+                    """, unsafe_allow_html=True)
 
+                # Critérios Eliminatórios
                 st.subheader("⚠️ Critérios Eliminatórios")
                 criterios_elim = analysis.get("criterios_eliminatorios", [])
                 
@@ -244,50 +420,59 @@ CÁLCULO:
                             criterios_violados = True
                             st.markdown(f"""
                             <div class="criterio-eliminatorio">
-                            <strong>{criterio.get('criterio', 'N/A')}</strong><br>
+                            <strong>⛔ {criterio.get('criterio', 'N/A')}</strong><br>
                             {criterio.get('justificativa', '')}
                             </div>
                             """, unsafe_allow_html=True)
                     
                     if not criterios_violados:
-                        st.success("Nenhum critério eliminatório foi violado.")
+                        st.success("✅ Nenhum critério eliminatório foi violado.")
                 else:
-                    st.info("Critérios eliminatórios não avaliados.")
+                    st.info("ℹ️ Critérios eliminatórios não avaliados.")
 
-                st.subheader("✅ Checklist Técnico (Avaliação por Grupos)")
-                checklist = analysis.get("checklist", [])
-                total = float(re.sub(r"[^\d.]", "", str(analysis.get("pontuacao_total", "0"))))
-                progress_class = get_progress_class((total/86)*100)
-                st.progress(min(total / 86, 1.0))
-                st.markdown(f"<h3 class='{progress_class}'>{int(total)} pontos de 86 ({int((total/86)*100)}%)</h3>", unsafe_allow_html=True)
-
-                with st.expander("Ver Detalhes do Checklist"):
+                # Detalhamento Técnico (Expandível)
+                with st.expander("🔍 Ver Detalhamento Técnico por Item"):
+                    st.write("*Avaliação individual de cada item que compõe os grupos*")
+                    checklist = analysis.get("checklist_detalhado", [])
+                    
+                    # Agrupar por grupo
+                    grupos_dict = {}
                     for item in checklist:
-                        resposta = item.get("resposta", "").lower()
-                        classe = "criterio-sim" if resposta == "sim" else "criterio-nao"
-                        icone = "✅" if resposta == "sim" else "❌"
-                        
-                        st.markdown(f"""
-                        <div class="{classe}">
-                        {icone} <strong>Item {item.get('item')}: {item.get('criterio')}</strong> ({item.get('pontos')} pts)<br>
-                        <em>{item.get('justificativa')}</em>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        grupo = item.get("grupo", "")
+                        if grupo not in grupos_dict:
+                            grupos_dict[grupo] = []
+                        grupos_dict[grupo].append(item)
+                    
+                    for grupo_letra in sorted(grupos_dict.keys()):
+                        st.markdown(f"**📌 Grupo {grupo_letra}**")
+                        for item in grupos_dict[grupo_letra]:
+                            resposta = item.get("resposta", "").lower()
+                            icone = "✅" if resposta == "sim" else "❌"
+                            
+                            st.markdown(f"""
+                            <div class="item-detalhe">
+                            {icone} <strong>Item {item.get('item')}: {item.get('criterio')}</strong><br>
+                            <em>{item.get('justificativa')}</em>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        st.markdown("---")
 
+                # Resumo Geral
                 st.subheader("📝 Resumo Geral")
                 st.markdown(f"<div class='result-box'>{analysis.get('resumo_geral', 'N/A')}</div>", unsafe_allow_html=True)
                 
+                # PDF
                 st.subheader("📄 Relatório em PDF")
                 try:
                     pdf_bytes = create_pdf(analysis, transcript_text, modelo_gpt)
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"MonitorAI_Relatorio_{timestamp}.pdf"
+                    filename = f"MonitorAI_Grupos_{timestamp}.pdf"
                     st.markdown(get_pdf_download_link(pdf_bytes, filename), unsafe_allow_html=True)
                 except Exception as pdf_error:
-                    st.error(f"Erro ao gerar PDF: {str(pdf_error)}")
+                    st.error(f"❌ Erro ao gerar PDF: {str(pdf_error)}")
 
             except Exception as e:
-                st.error(f"Erro ao processar a análise: {str(e)}")
+                st.error(f"❌ Erro ao processar a análise: {str(e)}")
                 try:
                     st.text_area("Resposta da IA:", value=response.choices[0].message.content.strip(), height=300)
                 except:
