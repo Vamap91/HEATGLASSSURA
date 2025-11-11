@@ -11,6 +11,40 @@ from fpdf import FPDF
 
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
+def clean_text_for_pdf(text):
+    """Remove ou substitui caracteres que não são suportados pelo latin-1"""
+    if not text:
+        return ""
+    # Substituições comuns
+    replacements = {
+        '\u2026': '...',  # Reticências
+        '\u2013': '-',    # En dash
+        '\u2014': '--',   # Em dash
+        '\u2018': "'",    # Left single quote
+        '\u2019': "'",    # Right single quote
+        '\u201C': '"',    # Left double quote
+        '\u201D': '"',    # Right double quote
+        '\u2022': '*',    # Bullet
+        '\u2032': "'",    # Prime
+        '\u2033': '"',    # Double prime
+        '\u00B0': ' graus',  # Degree symbol
+        '\u00A9': '(c)',  # Copyright
+        '\u00AE': '(R)',  # Registered
+        '\u2122': '(TM)', # Trademark
+    }
+    
+    for unicode_char, replacement in replacements.items():
+        text = text.replace(unicode_char, replacement)
+    
+    # Remove qualquer caractere que não seja latin-1
+    try:
+        text.encode('latin-1')
+    except UnicodeEncodeError:
+        # Se ainda há caracteres problemáticos, remove-os
+        text = text.encode('latin-1', errors='ignore').decode('latin-1')
+    
+    return text
+
 def create_pdf(analysis, transcript_text, model_name):
     pdf = FPDF()
     pdf.add_page()
@@ -30,16 +64,16 @@ def create_pdf(analysis, transcript_text, model_name):
     pdf.cell(0, 10, "Status Final", 0, 1)
     pdf.set_font("Arial", "", 12)
     final = analysis.get("status_final", {})
-    pdf.cell(0, 10, f"Satisfacao: {final.get('satisfacao', 'N/A')}", 0, 1)
-    pdf.cell(0, 10, f"Desfecho: {final.get('desfecho', 'N/A')}", 0, 1)
-    pdf.cell(0, 10, f"Risco: {final.get('risco', 'N/A')}", 0, 1)
+    pdf.cell(0, 10, clean_text_for_pdf(f"Satisfacao: {final.get('satisfacao', 'N/A')}"), 0, 1)
+    pdf.cell(0, 10, clean_text_for_pdf(f"Desfecho: {final.get('desfecho', 'N/A')}"), 0, 1)
+    pdf.cell(0, 10, clean_text_for_pdf(f"Risco: {final.get('risco', 'N/A')}"), 0, 1)
     pdf.ln(5)
     
     # Pontuação Total
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Pontuacao Total", 0, 1)
     pdf.set_font("Arial", "B", 12)
-    total = analysis.get("pontuacao_total_percentual", "N/A")
+    total = clean_text_for_pdf(str(analysis.get("pontuacao_total_percentual", "N/A")))
     pdf.cell(0, 10, f"{total}% (avaliacao por grupos)", 0, 1)
     pdf.ln(5)
     
@@ -50,11 +84,18 @@ def create_pdf(analysis, transcript_text, model_name):
     
     grupos = analysis.get("grupos_avaliacao", [])
     for grupo in grupos:
-        status_text = "FEITO" if grupo.get('feito') else "NAO FEITO"
+        feito = grupo.get('feito')
+        if feito is None:
+            status_text = "NAO AVALIADO"
+        else:
+            status_text = "FEITO" if feito else "NAO FEITO"
+        
         pdf.set_font("Arial", "B", 12)
-        pdf.multi_cell(0, 8, f"{grupo.get('nome')} - {status_text}")
+        nome_grupo = clean_text_for_pdf(grupo.get('nome', ''))
+        pdf.multi_cell(0, 8, f"{nome_grupo} - {status_text}")
         pdf.set_font("Arial", "", 10)
-        pdf.multi_cell(0, 6, f"Justificativa: {grupo.get('justificativa', 'N/A')}")
+        justificativa = clean_text_for_pdf(grupo.get('justificativa', 'N/A'))
+        pdf.multi_cell(0, 6, f"Justificativa: {justificativa}")
         pdf.ln(3)
     
     # Resumo Geral
@@ -62,7 +103,8 @@ def create_pdf(analysis, transcript_text, model_name):
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Resumo Geral", 0, 1)
     pdf.set_font("Arial", "", 12)
-    pdf.multi_cell(0, 10, analysis.get("resumo_geral", "N/A"))
+    resumo = clean_text_for_pdf(analysis.get("resumo_geral", "N/A"))
+    pdf.multi_cell(0, 10, resumo)
     pdf.ln(5)
     
     # Critérios Eliminatórios
@@ -73,9 +115,11 @@ def create_pdf(analysis, transcript_text, model_name):
     for criterio in criterios_elim:
         if criterio.get("ocorreu", False):
             pdf.set_font("Arial", "B", 11)
-            pdf.multi_cell(0, 8, f"VIOLADO: {criterio.get('criterio', 'N/A')}")
+            criterio_texto = clean_text_for_pdf(criterio.get('criterio', 'N/A'))
+            pdf.multi_cell(0, 8, f"VIOLADO: {criterio_texto}")
             pdf.set_font("Arial", "", 10)
-            pdf.multi_cell(0, 6, f"{criterio.get('justificativa', '')}")
+            justificativa = clean_text_for_pdf(criterio.get('justificativa', ''))
+            pdf.multi_cell(0, 6, justificativa)
             pdf.ln(3)
     
     # Detalhamento Técnico
@@ -87,10 +131,13 @@ def create_pdf(analysis, transcript_text, model_name):
     checklist = analysis.get("checklist_detalhado", [])
     for item in checklist:
         pdf.set_font("Arial", "B", 11)
-        pdf.multi_cell(0, 8, f"Item {item.get('item')}: {item.get('criterio')}")
+        criterio = clean_text_for_pdf(item.get('criterio', ''))
+        pdf.multi_cell(0, 8, f"Item {item.get('item')}: {criterio}")
         pdf.set_font("Arial", "", 10)
-        pdf.cell(0, 6, f"Resposta: {item.get('resposta', '')}", 0, 1)
-        pdf.multi_cell(0, 6, f"Justificativa: {item.get('justificativa', '')}")
+        resposta = clean_text_for_pdf(item.get('resposta', ''))
+        pdf.cell(0, 6, f"Resposta: {resposta}", 0, 1)
+        justificativa = clean_text_for_pdf(item.get('justificativa', ''))
+        pdf.multi_cell(0, 6, f"Justificativa: {justificativa}")
         pdf.ln(3)
     
     # Transcrição
@@ -98,7 +145,8 @@ def create_pdf(analysis, transcript_text, model_name):
     pdf.set_font("Arial", "B", 14)
     pdf.cell(0, 10, "Transcricao", 0, 1)
     pdf.set_font("Arial", "", 10)
-    pdf.multi_cell(0, 10, transcript_text)
+    transcript_clean = clean_text_for_pdf(transcript_text)
+    pdf.multi_cell(0, 10, transcript_clean)
     
     return pdf.output(dest="S").encode("latin1")
 
@@ -197,10 +245,19 @@ Itens que compõem este grupo:
 - Item 15 (peso interno 6): Orientou o cliente sobre a pesquisa de satisfação do atendimento?
 
 **GRUPO E (10%): Transferiu a ligação ao superior quando solicitado e/ou necessário?**
-(Não avaliado no modelo atual - colaboradores têm autonomia)
+Avalie se houve necessidade de transferência e como foi conduzida:
+- Houve situação que exigisse transferência?
+- Se sim, foi feita adequadamente?
+- Se não, o atendente resolveu com autonomia?
+IMPORTANTE: Este grupo NÃO conta para pontuação, mas deve ser analisado.
 
 **GRUPO F (20%): Teve foco no cliente?**
-(Avaliado através dos grupos anteriores - soma dos itens em verde)
+Avalie o foco no cliente durante TODO o atendimento:
+- Priorizou as necessidades do cliente?
+- Manteve empatia e interesse genuíno?
+- Buscou a melhor solução para o cliente?
+- Demonstrou comprometimento em resolver o problema?
+IMPORTANTE: Este grupo NÃO é apenas transversal, deve ser analisado independentemente.
 
 INSTRUÇÕES DETALHADAS PARA CADA ITEM:
 
@@ -300,16 +357,16 @@ RETORNE APENAS JSON (sem ``` ou texto adicional):
     {{
       "grupo": "E",
       "nome": "Transferiu a ligação ao superior quando solicitado e/ou necessário?",
-      "percentual": 10,
-      "feito": null,
-      "justificativa": "Não avaliado - colaboradores têm autonomia no atendimento"
+      "percentual": 0,
+      "feito": true/false/null,
+      "justificativa": "Análise detalhada: houve necessidade de transferência? Se sim, como foi conduzida? Se não, o atendente demonstrou autonomia adequada?"
     }},
     {{
       "grupo": "F",
       "nome": "Teve foco no cliente?",
-      "percentual": 20,
+      "percentual": 0,
       "feito": true/false,
-      "justificativa": "Avaliado através da soma dos grupos anteriores que demonstram foco no cliente"
+      "justificativa": "Análise detalhada do foco no cliente durante TODO o atendimento: priorizou necessidades, manteve empatia, buscou melhor solução, demonstrou comprometimento"
     }}
   ],
   "checklist_detalhado": [
@@ -391,14 +448,34 @@ CÁLCULO DA PONTUAÇÃO:
 
                 # Avaliação por Grupos (Principal)
                 st.subheader("✅ Avaliação por Grupos")
-                st.write("*Cada grupo só é considerado FEITO se TODOS os seus itens forem aprovados*")
+                st.write("*Grupos A, B, C, D: Cada grupo só é considerado FEITO se TODOS os seus itens forem aprovados*")
+                st.write("*Grupos E e F: Analisados qualitativamente, mas NÃO contam para pontuação*")
                 
                 grupos = analysis.get("grupos_avaliacao", [])
                 for grupo in grupos:
                     feito = grupo.get("feito")
-                    if feito is None:
-                        continue  # Pular grupo E que não é avaliado
+                    grupo_letra = grupo.get("grupo", "")
+                    percentual = grupo.get("percentual", 0)
                     
+                    # Grupos E e F não contam para pontuação mas são analisados
+                    if grupo_letra in ["E", "F"]:
+                        if feito is None:
+                            classe = "status-box"
+                            icone = "ℹ️ ANÁLISE"
+                        else:
+                            classe = "grupo-feito" if feito else "grupo-nao-feito"
+                            icone = "✅ SIM" if feito else "❌ NÃO"
+                        
+                        st.markdown(f"""
+                        <div class="{classe}">
+                        <strong>{icone} | {grupo.get('nome')}</strong><br>
+                        <small><em>⚠️ Este critério não conta para pontuação, mas é analisado para fins qualitativos</em></small><br>
+                        <em>{grupo.get('justificativa', 'N/A')}</em>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        continue
+                    
+                    # Grupos A, B, C, D contam para pontuação
                     classe = "grupo-feito" if feito else "grupo-nao-feito"
                     icone = "✅ FEITO" if feito else "❌ NÃO FEITO"
                     
